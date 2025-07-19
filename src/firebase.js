@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 // Cấu hình Firebase - SỬ DỤNG CONFIG THẬT
 const firebaseConfig = {
@@ -16,6 +17,9 @@ const app = initializeApp(firebaseConfig);
 
 // Khởi tạo Firestore
 export const db = getFirestore(app);
+
+// Khởi tạo Firebase Authentication
+export const auth = getAuth(app);
 
 // Đối với development, ta sẽ sử dụng cùng Firestore instance như server
 // Nếu muốn sử dụng emulator, uncomment dòng sau:

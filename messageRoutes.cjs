@@ -235,4 +235,77 @@ router.delete('/clear', async (req, res) => {
   }
 });
 
+// Gửi thông báo đến user khi admin xác nhận đơn hàng
+router.post('/send-order-notification', async (req, res) => {
+  try {
+    const { orderId, userId, customerName, orderTotal, status } = req.body;
+    console.log('Sending order notification:', { orderId, userId, customerName, status });
+    
+    const now = Date.now();
+    
+    // Tạo thông báo trong collection notifications
+    const notificationData = {
+      userId: userId,
+      orderId: orderId,
+      title: 'Cập nhật đơn hàng',
+      message: `Đơn hàng #${orderId} của bạn đã được ${status === 'confirmed' ? 'xác nhận' : 'cập nhật'}. Tổng tiền: ${orderTotal?.toLocaleString() || 0}đ`,
+      type: 'order_update',
+      status: status,
+      isRead: false,
+      createdAt: now
+    };
+    
+    const notificationRef = await db.collection('notifications').add(notificationData);
+    console.log('Notification created with ID:', notificationRef.id);
+    
+    // Tạo hoặc cập nhật conversation với user nếu cần
+    const conversationId = `order_${orderId}_${userId}`;
+    const conversationRef = db.collection('conversations').doc(conversationId);
+    
+    // Kiểm tra conversation có tồn tại không
+    const conversationDoc = await conversationRef.get();
+    
+    if (!conversationDoc.exists) {
+      // Tạo conversation mới
+      await conversationRef.set({
+        userId: userId,
+        customerName: customerName || userId,
+        orderId: orderId,
+        lastMessage: notificationData.message,
+        lastMessageTime: now,
+        isOrderRelated: true,
+        createdAt: now
+      });
+    } else {
+      // Cập nhật conversation
+      await conversationRef.update({
+        lastMessage: notificationData.message,
+        lastMessageTime: now
+      });
+    }
+    
+    // Thêm message vào conversation
+    await conversationRef.collection('messages').add({
+      text: notificationData.message,
+      senderName: 'Hệ thống',
+      senderType: 'system',
+      createdAt: now,
+      isOrderNotification: true,
+      orderId: orderId,
+      orderStatus: status
+    });
+    
+    console.log('Order notification sent successfully');
+    res.json({ 
+      success: true, 
+      message: 'Thông báo đã được gửi thành công',
+      notificationId: notificationRef.id,
+      conversationId: conversationId
+    });
+  } catch (err) {
+    console.error('Error sending order notification:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import AdminOrders from './AdminOrders';
 import AdminChat from './AdminChat';
 import UserManagement from './UserManagement';
+import NotificationManager from './NotificationManager';
+import NotificationDemo from './NotificationDemo';
+import UserNotifications from './UserNotifications';
 
 function Dashboard({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('orders');
@@ -88,7 +91,43 @@ function Dashboard({ user, onLogout }) {
                 fontWeight: 'bold'
               }}
             >
-              � Chat với Khách hàng
+              💬 Chat với Khách hàng
+            </button>
+          )}
+
+          {hasPermission('manager') && (
+            <button
+              onClick={() => setActiveTab('notifications')}
+              style={{
+                padding: '15px 20px',
+                backgroundColor: activeTab === 'notifications' ? '#4CAF50' : 'transparent',
+                color: activeTab === 'notifications' ? 'white' : '#666',
+                border: 'none',
+                borderBottom: activeTab === 'notifications' ? '3px solid #4CAF50' : '3px solid transparent',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 'bold'
+              }}
+            >
+              🔔 Thông báo
+            </button>
+          )}
+
+          {hasPermission('manager') && (
+            <button
+              onClick={() => setActiveTab('notification-demo')}
+              style={{
+                padding: '15px 20px',
+                backgroundColor: activeTab === 'notification-demo' ? '#4CAF50' : 'transparent',
+                color: activeTab === 'notification-demo' ? 'white' : '#666',
+                border: 'none',
+                borderBottom: activeTab === 'notification-demo' ? '3px solid #4CAF50' : '3px solid transparent',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 'bold'
+              }}
+            >
+              🚀 Demo Real-time
             </button>
           )}
 
@@ -134,6 +173,8 @@ function Dashboard({ user, onLogout }) {
       <main style={{ padding: '30px' }}>
         {activeTab === 'orders' && hasPermission('manager') && <AdminOrders />}
         {activeTab === 'admin-chat' && hasPermission('manager') && <AdminChat />}
+        {activeTab === 'notifications' && hasPermission('manager') && <NotificationManager />}
+        {activeTab === 'notification-demo' && hasPermission('manager') && <NotificationDemo />}
         {activeTab === 'users' && hasPermission('admin') && <UserManagement />}
         {activeTab === 'settings' && hasPermission('admin') && <SettingsPanel />}
       </main>

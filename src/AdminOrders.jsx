@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { db } from './firebase.js';
-import { collection, getDocs, doc, updateDoc, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, orderBy, query, addDoc, serverTimestamp } from 'firebase/firestore';
 
 function AdminOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updating, setUpdating] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   // Lấy orders từ Firebase
   const fetchOrders = async () => {
@@ -46,6 +47,9 @@ function AdminOrders() {
     try {
       console.log(`Updating order ${orderId} to status: ${newStatus}`);
       
+      // Tìm thông tin đơn hàng để gửi thông báo
+      const orderToUpdate = orders.find(order => order.id === orderId);
+      
       // Cập nhật trực tiếp trong Firebase
       const orderRef = doc(db, 'orders', orderId);
       await updateDoc(orderRef, {
@@ -57,6 +61,54 @@ function AdminOrders() {
       setOrders(orders.map(order => 
         order.id === orderId ? { ...order, status: newStatus, updatedAt: Date.now() } : order
       ));
+      
+      // Gửi thông báo real-time đến user khi xác nhận đơn hàng
+      if (newStatus === 'confirmed' && orderToUpdate) {
+        try {
+          // Debug: Log thông tin order trước khi tạo notification
+          console.log('Order data before notification:', orderToUpdate);
+          
+          // Kiểm tra và chuẩn bị dữ liệu an toàn
+          const safeOrderData = {
+            userId: orderToUpdate.userId || orderToUpdate.customerEmail || 'unknown',
+            customerName: orderToUpdate.customerName || orderToUpdate.customerEmail || 'Khách hàng',
+            total: orderToUpdate.total || 0,
+            items: Array.isArray(orderToUpdate.items) ? orderToUpdate.items : []
+          };
+          
+          console.log('Safe order data:', safeOrderData);
+
+          // Tạo thông báo trực tiếp trong Firestore để user nhận real-time
+          const notificationData = {
+            userId: safeOrderData.userId,
+            orderId: orderId,
+            title: 'Đơn hàng đã được xác nhận',
+            message: `Đơn hàng #${orderId} của bạn đã được xác nhận và sẽ sớm được giao. Tổng tiền: ${safeOrderData.total.toLocaleString()}đ`,
+            type: 'order_confirmed',
+            status: 'confirmed',
+            isRead: false,
+            createdAt: serverTimestamp(),
+            orderDetails: {
+              orderId: orderId,
+              total: safeOrderData.total,
+              customerName: safeOrderData.customerName,
+              items: safeOrderData.items
+            }
+          };
+          
+          // Thêm vào collection notifications để user nhận real-time
+          await addDoc(collection(db, 'notifications'), notificationData);
+          
+          console.log('Real-time notification sent successfully to user:', orderToUpdate.userId);
+          setSuccessMessage(`✅ Đã xác nhận đơn hàng #${orderId} và gửi thông báo real-time đến khách hàng!`);
+          setTimeout(() => setSuccessMessage(null), 5000);
+          
+        } catch (notificationError) {
+          console.error('Error sending real-time notification:', notificationError);
+          setSuccessMessage(`✅ Đã xác nhận đơn hàng #${orderId} nhưng có lỗi khi gửi thông báo: ${notificationError.message}`);
+          setTimeout(() => setSuccessMessage(null), 7000);
+        }
+      }
       
       console.log(`Order ${orderId} updated successfully`);
       setUpdating(null);
@@ -93,6 +145,20 @@ function AdminOrders() {
       </button>
     </div>
   );
+
+  // Hiển thị thông báo thành công
+  const SuccessAlert = () => successMessage && (
+    <div style={{ 
+      color: 'green', 
+      padding: '15px', 
+      backgroundColor: '#d4edda', 
+      borderRadius: '5px',
+      marginBottom: '20px',
+      border: '1px solid #c3e6cb'
+    }}>
+      <strong>✅ Thành công:</strong> {successMessage}
+    </div>
+  );
   
   if (orders.length === 0) return (
     <div style={{ textAlign: 'center', padding: '20px' }}>
@@ -115,6 +181,7 @@ function AdminOrders() {
 
   return (
     <div>
+      <SuccessAlert />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h2>📋 Quản lý Đơn hàng</h2>
         <button
