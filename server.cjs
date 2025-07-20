@@ -10,4 +10,5 @@ app.use(express.json());
 app.use('/api/messages', messageRoutes);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`📱 BookStore Admin Backend running on port ${PORT}`));
+// Sửa để lắng nghe trên 0.0.0.0
+app.listen(PORT, '0.0.0.0', () => console.log(`📱 BookStore Admin Backend running on port ${PORT}`));
